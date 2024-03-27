@@ -1,3 +1,4 @@
+#include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -37,7 +38,8 @@ int isbalanced(char *b) {
 
 struct tape {
   int cells[TAPELEN];
-  int cur;
+  int cur; // index of current cell
+  int pc; // program counter (position in buffer memory)
 };
 
 int allzero(struct tape *t) {
@@ -48,11 +50,12 @@ int allzero(struct tape *t) {
   return 0;
 }
 
-int closing(char *buffer, int start) {
+// Get the index in the buffer of the matching closing bracket ]
+int closing(struct tape *t, char *buffer) {
   int depth = 1;
   int i;
   
-  for (i = start + 1; buffer[i] != '\0' && depth != 0; i++) {
+  for (i = t->pc + 1; buffer[i] != '\0' && depth != 0; i++) {
     if (buffer[i] == '[')
       ++depth;
     else if (buffer[i] == ']')
@@ -62,21 +65,22 @@ int closing(char *buffer, int start) {
   return i;
 }
 
-int opening(char *buffer, int end) {
+// Get the index in the buffer of the token before the matching opening bracket [
+int opening(struct tape *t, char *buffer) {
   int depth = -1;
   int i;
-  for (i = end - 1; i > 0 && depth != 0; i--) {
+  for (i = t->pc - 1; i > 0 && depth != 0; i--) {
     if (buffer[i] == '[') 
       ++depth;
     else if (buffer[i] == ']')
       --depth;
   }
-  return i + 1; // The for-loop decrements i before we check the condition to find the depth == 0
+  return i; // The for-loop decrements i before we check the condition to find the depth == 0
 }
 
-void execute(struct tape *t, char *buffer, int cursor) {
-  char c = buffer[cursor];
-  switch (c) {
+void execute(struct tape *t, char *buffer) {
+  char tok = buffer[t->pc];
+  switch (tok) {
     case '>':
       ++t->cur;
       break;
@@ -93,30 +97,46 @@ void execute(struct tape *t, char *buffer, int cursor) {
       t->cells[t->cur] = getchar();
       break;
     case '.':
-      putchar(t->cells[t->cur]+65);
+      putchar(t->cells[t->cur]);
       break;
     case '[':
       if (t->cells[t->cur] == 0) 
-        t->cur = closing(buffer, cursor);
+        t->pc = closing(t, buffer);
       break; 
     case ']': 
       if (t->cells[t->cur] != 0)
-        t->cur = opening(buffer, cursor);
+        t->pc = opening(t, buffer);
       break;
   }
+  ++t->pc;
 }
 
 void run(struct tape *tp, char *buffer) {
-  for (int i = 0; buffer[i] != '\0'; i++) {
-    execute(tp, buffer, i);
+  char c;
+  while (buffer[tp->pc] != '\0') {
+    /*
+    printf("\x1B[H");
+    for (int i = 0; (c = buffer[i]) != '\0'; i++) {
+      if (i == tp->pc) {
+        printf("\033[47m\033[30m%c\033[0m", c);
+      } else {
+        printf("%c", c);
+      }
+
+    }
+    */
+    execute(tp, buffer);
+//    sleep(1);
   }
 }
 
 int main(int argc, char **argv){
 
+  /*
   for (int i = 0; i < argc; i++)
     printf("%s\n", argv[i]);
   printf("%s\n", argv[1]);
+  */
 
   if (argc != 2) {
     perror("Usage: bf [file]\n");
@@ -145,7 +165,7 @@ int main(int argc, char **argv){
 
   fclose(f);
 
-  printf("%s\n", buffer);
+  //printf("%s\n", buffer);
 
   if (!isbalanced(buffer)) {
     perror("Syntax error: unbalanced brackets");
@@ -155,6 +175,7 @@ int main(int argc, char **argv){
 
   struct tape interpreter;
   interpreter.cur = 0;
+  interpreter.pc = 0;
   int *p = calloc(TAPELEN, sizeof(int));
   for (int i = 0; i < TAPELEN; i++) {
     interpreter.cells[i] = p[i];
@@ -162,19 +183,23 @@ int main(int argc, char **argv){
 
   free(p);
 
+  /*
   if (0 == allzero(&interpreter)){
     printf("All zero!\n");
   } else {
     printf("Something isn't zero!\n");
   }
+  */
 
   run(&interpreter, buffer);
 
+  /*
   printf("\n");
 
   for (int i = 0; i < 20; i++)
     printf("%d ", interpreter.cells[i]);
   printf("\n");
+  */
   free(buffer);
 
   return 0;
