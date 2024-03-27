@@ -3,6 +3,7 @@
 #include <stdlib.h>
 
 #define TAPELEN 30000
+#define DEBUG 0
 
 long flen(FILE *fp) {
   fseek(fp, 0, SEEK_END);
@@ -79,8 +80,7 @@ int opening(struct tape *t, char *buffer) {
 }
 
 void execute(struct tape *t, char *buffer) {
-  char tok = buffer[t->pc];
-  switch (tok) {
+  switch (buffer[t->pc]) {
     case '>':
       ++t->cur;
       break;
@@ -106,40 +106,34 @@ void execute(struct tape *t, char *buffer) {
     case ']': 
       if (t->cells[t->cur] != 0)
         t->pc = opening(t, buffer);
-      break;
   }
   ++t->pc;
 }
 
 void run(struct tape *tp, char *buffer) {
-  char c;
-  while (buffer[tp->pc] != '\0') {
-    /*
-    printf("\x1B[H");
-    for (int i = 0; (c = buffer[i]) != '\0'; i++) {
-      if (i == tp->pc) {
-        printf("\033[47m\033[30m%c\033[0m", c);
-      } else {
-        printf("%c", c);
+    char c;
+    while (buffer[tp->pc] != '\0') {
+      if (DEBUG){      
+        printf("\x1B[H");
+        for (int i = 0; (c = buffer[i]) != '\0'; i++) {
+          if (i == tp->pc) {
+            printf("\033[47m\033[30m%c\033[0m", c);
+          } else {
+            printf("%c", c);
+          }
+        }
       }
-
+    
+      execute(tp, buffer);
+      if (DEBUG)
+        sleep(1);
     }
-    */
-    execute(tp, buffer);
-//    sleep(1);
-  }
 }
 
 int main(int argc, char **argv){
 
-  /*
-  for (int i = 0; i < argc; i++)
-    printf("%s\n", argv[i]);
-  printf("%s\n", argv[1]);
-  */
-
   if (argc != 2) {
-    perror("Usage: bf [file]\n");
+    printf("Usage: bf [file]\n");
     return 1;
   }
 
@@ -151,7 +145,7 @@ int main(int argc, char **argv){
   f = fopen(fname, "r");
 
   if (f == NULL) {
-    perror("Error opening file");
+    perror("Error: ");
     return 1;
   }
 
@@ -165,10 +159,8 @@ int main(int argc, char **argv){
 
   fclose(f);
 
-  //printf("%s\n", buffer);
-
   if (!isbalanced(buffer)) {
-    perror("Syntax error: unbalanced brackets");
+    printf("Syntax error: unbalanced brackets\n");
     free(buffer);
     return 1;
   }
@@ -183,23 +175,8 @@ int main(int argc, char **argv){
 
   free(p);
 
-  /*
-  if (0 == allzero(&interpreter)){
-    printf("All zero!\n");
-  } else {
-    printf("Something isn't zero!\n");
-  }
-  */
-
   run(&interpreter, buffer);
 
-  /*
-  printf("\n");
-
-  for (int i = 0; i < 20; i++)
-    printf("%d ", interpreter.cells[i]);
-  printf("\n");
-  */
   free(buffer);
 
   return 0;
